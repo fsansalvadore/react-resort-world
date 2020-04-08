@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
-import items from './data';
+// import items from './data';
+import Client from './Contentful';
 
 const RoomContext = React.createContext();
 
@@ -8,20 +9,48 @@ export default class RoomProvider extends Component {
         rooms: [],
         sortedRooms: [],
         featuredRooms: [],
-        loading: true
+        loading: true,
+        type: 'all',
+        capacity: 1,
+        price: 0,
+        minPrice: 0,
+        maxPrice: 0,
+        minSize: 0,
+        maxSize: 0,
+        breakfast: false,
+        pets: false
     };
-    // getData()
+    // retreive data from Contentful
+    getData = async () => {
+        try {
+            let response = await Client.getEntries({
+                content_type: "roomExample",
+                // order: "sys.createdAt"
+                order: "-fields.price"
+            });
+            let rooms = this.formatData(response.items);
+
+            let featuredRooms = rooms.filter(room => room.featured === true);
+            // find max price and size of rooms
+            let maxPrice = Math.max(...rooms.map(room => room.price));
+            let maxSize = Math.max(...rooms.map(room => room.size));
+            // update the state
+            this.setState({
+                rooms,
+                featuredRooms,
+                sortedRooms: rooms,
+                loading: false,
+                price: maxPrice,
+                maxPrice,
+                maxSize
+            });
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
     componentDidMount() {
-        let rooms = this.formatData(items);
-        let featuredRooms = rooms.filter(room => room.featured === true);
-        // update the state
-        this.setState({
-            rooms,
-            featuredRooms,
-            sortedRooms: rooms,
-            loading: false
-        });
+        this.getData();
     }
 
     formatData(items) {
@@ -41,9 +70,61 @@ export default class RoomProvider extends Component {
         return room    
     }
 
+    handleChange = event => {
+        const target = event.target;
+        const value = target.type === 'checkbox' ? target.checked : target.value;
+        const name = event.target.name;
+        this.setState(
+            {
+                [name]:value
+            },
+            this.filterRooms
+        );
+    };
+
+    filterRooms = () => {
+        let {
+            rooms, type,capacity,price,minSize,maxSize,minPrice,maxPrice,breakfast,pets
+        } = this.state;
+
+        // all the rooms
+        let tempRooms = [...rooms];
+        // transform values
+        capacity = parseInt(capacity);
+        // filter by type
+        if(type !== 'all') {
+            tempRooms = tempRooms.filter(room => room.type === type);
+        }
+        // filter by capacity
+        if(capacity !== 1) {
+            tempRooms = tempRooms.filter(room => room.capacity >= capacity)
+        }
+        // filter by price
+        tempRooms = tempRooms.filter(room => room.price <= price);
+        // filter by size
+        tempRooms = tempRooms.filter(room => room.size <= maxSize && room.size >= minSize);
+        // filter by breakfast
+        if(breakfast) {
+            tempRooms = tempRooms.filter(room => room.breakfast)
+        }
+        // filter by pets
+        if(pets) {
+            tempRooms = tempRooms.filter(room => room.pets)
+        }
+        // update state
+        this.setState({
+            sortedRooms:tempRooms
+        });
+    };
+
     render() {
         return (
-            <RoomContext.Provider value={{...this.state, getRoom: this.getRoom}}>
+            <RoomContext.Provider 
+                value={{
+                    ...this.state,
+                    getRoom: this.getRoom,
+                    handleChange: this.handleChange  
+                }}>
                 {this.props.children}
             </RoomContext.Provider>
         )
@@ -51,5 +132,15 @@ export default class RoomProvider extends Component {
 }
 
 const RoomConsumer = RoomContext.Consumer;
+
+export function withRoomConsumer(Component) {
+    return function ConsumerWrapper(props) {
+        return (
+            <RoomConsumer>
+                {value => <Component {...props} context={value}/>}
+            </RoomConsumer>
+        )
+    }
+}
 
 export { RoomProvider, RoomConsumer, RoomContext };

@@ -307,10 +307,13 @@ h6 {
 
 .img-container {
   position: relative;
+  overflow: hidden;
+  max-height: 200px;
 }
 .img-container img {
   width: 100%;
   display: block;
+  /* max-height: 230px; */
   transition: var(--mainTransition);
 }
 .price-top {
