@@ -86,7 +86,6 @@ export default class RoomProvider extends Component {
         let {
             rooms, type,capacity,price,minSize,maxSize,minPrice,maxPrice,breakfast,pets
         } = this.state;
-
         // all the rooms
         let tempRooms = [...rooms];
         // transform values
